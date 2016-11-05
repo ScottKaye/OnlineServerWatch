@@ -15,11 +15,20 @@ namespace CoreRCON
 				var rcon = new RCON();
 				await rcon.Connect("192.168.1.8", 27015, "rcon");
 
+				// Set up a listener for any responses that are TF2 statuses
+				rcon.Listen<Parsers.TF2.TF2Status>(parsed =>
+				{
+					Console.WriteLine("Got hostname: " + parsed.Hostname);
+				});
+
+				// Send status with callback
 				rcon.SendCommand("status", result =>
 				{
-					Console.WriteLine("status received:");
-					Console.WriteLine(result);
+					Console.WriteLine("Status received!");
 				});
+
+				// Send status with no callback
+				rcon.SendCommand("status");
 			}).Wait();
 
 			Console.ReadKey();

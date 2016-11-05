@@ -1,8 +1,10 @@
-﻿using System;
+﻿using CoreRCON.Parsers;
+using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Reflection;
 
 namespace CoreRCON
 {
@@ -27,6 +29,8 @@ namespace CoreRCON
 		/// Allows us to keep track of when authentication succeeds, so we can block Connect from returning until it does.s
 		/// </summary>
 		private TaskCompletionSource<bool> authenticated = new TaskCompletionSource<bool>();
+
+		private List<ParserContainer> parsers { get; set; } = new List<ParserContainer>();
 
 		/// <summary>
 		/// Connect to a server through RCON.  Automatically sends the authentication packet.
@@ -79,11 +83,38 @@ namespace CoreRCON
 			Action<string> action;
 			if (pendingCommands.TryGetValue(packet.Id, out action))
 			{
-				action(packet.Body);
+				action?.Invoke(packet.Body);
 				pendingCommands.Remove(packet.Id);
 			}
 
+			// Call parsers
+			foreach (var parser in parsers)
+			{
+				parser.TryCallback(packet.Body);
+			}
+
 			socket.ReceiveAsync(e);
+		}
+
+		public void Listen<T>(Action<T> result)
+			where T : class
+		{
+			// Instantiate the parser associated with the type parameter
+			var parserAttribute = typeof(T).GetTypeInfo().GetCustomAttribute<ParserAttribute>();
+			if (parserAttribute == null) throw new ArgumentException($"Class {typeof(T).FullName} does not have a Parser attribute.");
+
+			var instance = (IParser<T>)Activator.CreateInstance(parserAttribute.ParserType);
+
+			// Create the parser container
+			parsers.Add(new ParserContainer
+			{
+				IsMatch = line => instance.IsMatch(line),
+				Parse = line => instance.Parse(line),
+				Callback = parsed =>
+				{
+					result(parsed as T);
+				}
+			});
 		}
 
 		/// <summary>
@@ -100,7 +131,7 @@ namespace CoreRCON
 		/// </summary>
 		/// <param name="command">Command to send to the server.</param>
 		/// <param name="result">Response from the server.</param>
-		public void SendCommand(string command, Action<string> result)
+		public void SendCommand(string command, Action<string> result = null)
 		{
 			// Get a unique integer
 			Packet packet = new Packet(packetId, PacketType.ExecCommand, command);
