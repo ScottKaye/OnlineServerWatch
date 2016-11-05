@@ -55,7 +55,7 @@ namespace CoreRCON
 			socket.ReceiveAsync(e);
 
 			// Wait for successful authentication
-			SendPacket(new Packet(0, PacketType.Auth, password));
+			await SendPacket(new Packet(0, PacketType.Auth, password));
 			await authenticated.Task;
 		}
 
@@ -121,9 +121,10 @@ namespace CoreRCON
 		/// Send a packet to the server.
 		/// </summary>
 		/// <param name="packet">Packet to send, which will be serialized.</param>
-		public void SendPacket(Packet packet)
+		public async Task SendPacket(Packet packet)
 		{
 			socket.Send(packet.ToBytes());
+			await Task.Delay(10);
 		}
 
 		/// <summary>
@@ -131,13 +132,12 @@ namespace CoreRCON
 		/// </summary>
 		/// <param name="command">Command to send to the server.</param>
 		/// <param name="result">Response from the server.</param>
-		public void SendCommand(string command, Action<string> result = null)
+		public async Task SendCommand(string command, Action<string> result = null)
 		{
 			// Get a unique integer
-			Packet packet = new Packet(packetId, PacketType.ExecCommand, command);
+			Packet packet = new Packet(++packetId, PacketType.ExecCommand, command);
 			pendingCommands.Add(packetId, result);
-			SendPacket(packet);
-			++packetId;
+			await SendPacket(packet);
 		}
 	}
 }

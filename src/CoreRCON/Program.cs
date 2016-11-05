@@ -22,13 +22,16 @@ namespace CoreRCON
 				});
 
 				// Send status with callback
-				rcon.SendCommand("status", result =>
+				await rcon.SendCommand("status", result =>
 				{
 					Console.WriteLine("Status received!");
 				});
 
 				// Send status with no callback
-				rcon.SendCommand("status");
+				await rcon.SendCommand("status", result =>
+				{
+					Console.WriteLine("received again!");
+				});
 			}).Wait();
 
 			Console.ReadKey();
