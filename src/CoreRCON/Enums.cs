@@ -1,9 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
-
-namespace CoreRCON
+﻿namespace CoreRCON
 {
 	// SERVERDATA_AUTH_RESPONSE and SERVERDATA_EXECCOMMAND are both 2
 	public enum PacketType

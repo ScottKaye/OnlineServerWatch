@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace CoreRCON
@@ -19,18 +19,20 @@ namespace CoreRCON
 		private Dictionary<int, Action<string>> pendingCommands { get; set; } = new Dictionary<int, Action<string>>();
 
 		/// <summary>
+		/// Allows us to keep track of when authentication succeeds, so we can block Connect from returning until it does.
+		/// </summary>
+		private TaskCompletionSource<bool> authenticated = new TaskCompletionSource<bool>();
+
+		/// <summary>
 		/// Connect to a server through RCON.  Automatically sends the authentication packet.
 		/// </summary>
 		/// <param name="hostname">Resolvable hostname.</param>
 		/// <param name="port">Port number RCON is listening on.</param>
 		/// <param name="password">RCON password.</param>
-		/// <returns>Awaitable which will complete when a successful connection is made.</returns>
+		/// <returns>Awaitable which will complete when a successful connection is made and authentication is successful.</returns>
 		public async Task Connect(string hostname, ushort port, string password)
 		{
 			await socket.ConnectAsync(hostname, port);
-
-			// Authenticate
-			SendPacket(new Packet(1, PacketType.Auth, "rcon"));
 
 			// Set up listener
 			var e = new SocketAsyncEventArgs();
@@ -39,6 +41,10 @@ namespace CoreRCON
 
 			// Start listening for responses
 			socket.ReceiveAsync(e);
+
+			// Wait for successful authentication
+			SendPacket(new Packet(0, PacketType.Auth, password));
+			await authenticated.Task;
 		}
 
 		/// <summary>
@@ -48,6 +54,18 @@ namespace CoreRCON
 		{
 			// Parse out the actual RCON packet
 			Packet packet = Packet.FromBytes(e.Buffer);
+
+			if (packet.Type == PacketType.AuthResponse)
+			{
+				// Failed auth responses return with an ID of -1
+				if (packet.Id == -1)
+				{
+					throw new AuthenticationException($"Authentication failed for {socket.RemoteEndPoint}.");
+				}
+
+				// Tell Connect that authentication succeeded
+				authenticated.SetResult(true);
+			}
 
 			// Call pending result and remove from map
 			if (pendingCommands.ContainsKey(packet.Id))

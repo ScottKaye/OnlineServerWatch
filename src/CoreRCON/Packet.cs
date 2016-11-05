@@ -1,9 +1,6 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.IO;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 
 namespace CoreRCON
 {
@@ -15,6 +12,12 @@ namespace CoreRCON
 		public readonly PacketType Type;
 		public readonly string Body;
 
+		/// <summary>
+		/// Create a new packet.
+		/// </summary>
+		/// <param name="id">Some kind of identifier to keep track of responses from the server.</param>
+		/// <param name="type">What the server is supposed to do with the body of this packet.</param>
+		/// <param name="body">The actual information held within.</param>
 		public Packet(int id, PacketType type, string body)
 		{
 			Id = id;
@@ -22,6 +25,10 @@ namespace CoreRCON
 			Body = body;
 		}
 
+		/// <summary>
+		/// Serializes a packet to a byte array for transporting over a network.  Body is serialized as UTF8.
+		/// </summary>
+		/// <returns>Byte array with each field.</returns>
 		internal byte[] ToBytes()
 		{
 			byte[] body = utf8.GetBytes(Body + "\0");
@@ -38,9 +45,17 @@ namespace CoreRCON
 			return packet.ToArray();
 		}
 
+		/// <summary>
+		/// Converts a buffer to a packet.
+		/// </summary>
+		/// <param name="buffer">Buffer to read.</param>
+		/// <returns>Created packet.</returns>
 		internal static Packet FromBytes(byte[] buffer)
 		{
 			int size = BitConverter.ToInt32(buffer, 0);
+
+			if (size < 10) throw new InvalidDataException("Packet received was invalid.");
+
 			int id = BitConverter.ToInt32(buffer, 4);
 			PacketType type = (PacketType)BitConverter.ToInt32(buffer, 8);
 
