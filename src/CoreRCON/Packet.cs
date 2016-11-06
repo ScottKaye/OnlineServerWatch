@@ -62,7 +62,7 @@ namespace CoreRCON
 			PacketType type = (PacketType)BitConverter.ToInt32(buffer, 8);
 
 			char[] body = Encoding.UTF8.GetChars(buffer, 12, size - 10);
-			return new Packet(id, type, new string(body, 0, size - 10));
+			return new Packet(id, type, new string(body, 0, size - 10).TrimEnd());
 		}
 	}
 }

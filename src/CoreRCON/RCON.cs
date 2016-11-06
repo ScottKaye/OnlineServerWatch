@@ -5,20 +5,22 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Reflection;
+using System.Security;
 
 namespace CoreRCON
 {
 	public class RCON
 	{
+		#region Fields & Properties
 		/// <summary>
-		/// When generating the packet ID, use a never-been-used (for automatic packets) ID
+		/// When generating the packet ID, use a never-been-used (for automatic packets) ID.
 		/// </summary>
 		private static int packetId = 1;
 
 		/// <summary>
 		/// Socket object used to connect to RCON.
 		/// </summary>
-		private Socket socket { get; set; } = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+		private Socket socket { get; set; }
 
 		/// <summary>
 		/// Map of pending command references.  These are called when a command with the matching Id (key) is received.  Commands are called only once.
@@ -26,11 +28,24 @@ namespace CoreRCON
 		private Dictionary<int, Action<string>> pendingCommands { get; set; } = new Dictionary<int, Action<string>>();
 
 		/// <summary>
-		/// Allows us to keep track of when authentication succeeds, so we can block Connect from returning until it does.s
+		/// Allows us to keep track of when authentication succeeds, so we can block Connect from returning until it does.
 		/// </summary>
-		private TaskCompletionSource<bool> authenticated = new TaskCompletionSource<bool>();
+		private TaskCompletionSource<bool> authenticated;
 
+		/// <summary>
+		/// List of listeners to be polled whenever a packet is received.
+		/// </summary>
 		private List<ParserContainer> parsers { get; set; } = new List<ParserContainer>();
+
+		/// <summary>
+		/// Raw string listeners
+		/// </summary>
+		private List<Action<string>> listeners { get; set; } = new List<Action<string>>();
+
+		private string Hostname { get; set; }
+		private ushort Port { get; set; }
+		private string Password { get; set; }
+		#endregion
 
 		/// <summary>
 		/// Connect to a server through RCON.  Automatically sends the authentication packet.
@@ -41,10 +56,15 @@ namespace CoreRCON
 		/// <returns>Awaitable which will complete when a successful connection is made and authentication is successful.</returns>
 		public async Task Connect(string hostname, ushort port, string password)
 		{
-			if (hostname == null) throw new NullReferenceException("Hostname cannot be null.");
-			if (password == null) throw new NullReferenceException("Password cannot be null (authentication will always fail).");
+			Hostname = hostname;
+			Port = port;
+			Password = password;
 
-			await socket.ConnectAsync(hostname, port);
+			if (Hostname == null) throw new NullReferenceException("Hostname cannot be null.");
+			if (Password == null) throw new NullReferenceException("Password cannot be null (authentication will always fail).");
+
+			socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+			await socket.ConnectAsync(Hostname, Port);
 
 			// Set up listener
 			var e = new SocketAsyncEventArgs();
@@ -55,47 +75,16 @@ namespace CoreRCON
 			socket.ReceiveAsync(e);
 
 			// Wait for successful authentication
-			await SendPacket(new Packet(0, PacketType.Auth, password));
+			authenticated = new TaskCompletionSource<bool>();
+			await SendPacket(new Packet(0, PacketType.Auth, Password));
 			await authenticated.Task;
 		}
 
 		/// <summary>
-		/// Event called whenever raw data is received on the socket.
+		/// Listens on the socket for a parseable class to read.
 		/// </summary>
-		private void PacketReceived(object sender, SocketAsyncEventArgs e)
-		{
-			// Parse out the actual RCON packet
-			Packet packet = Packet.FromBytes(e.Buffer);
-
-			if (packet.Type == PacketType.AuthResponse)
-			{
-				// Failed auth responses return with an ID of -1
-				if (packet.Id == -1)
-				{
-					throw new AuthenticationException($"Authentication failed for {socket.RemoteEndPoint}.");
-				}
-
-				// Tell Connect that authentication succeeded
-				authenticated.SetResult(true);
-			}
-
-			// Call pending result and remove from map
-			Action<string> action;
-			if (pendingCommands.TryGetValue(packet.Id, out action))
-			{
-				action?.Invoke(packet.Body);
-				pendingCommands.Remove(packet.Id);
-			}
-
-			// Call parsers
-			foreach (var parser in parsers)
-			{
-				parser.TryCallback(packet.Body);
-			}
-
-			socket.ReceiveAsync(e);
-		}
-
+		/// <typeparam name="T">Class to be parsed; must have a ParserAttribute.</typeparam>
+		/// <param name="result">Parsed class.</param>
 		public void Listen<T>(Action<T> result)
 			where T : class
 		{
@@ -114,6 +103,46 @@ namespace CoreRCON
 				{
 					result(parsed as T);
 				}
+			});
+		}
+
+		/// <summary>
+		/// Listens on the socket for anything.
+		/// </summary>
+		/// <param name="result">Raw string returned by the server.</param>
+		public void Listen(Action<string> result)
+		{
+			listeners.Add(result);
+		}
+
+		/// <summary>
+		/// Polls the server to check if RCON is still authenticated.  Will still throw if the password was changed elsewhere.
+		/// </summary>
+		/// <param name="delay">Time in milliseconds to wait between polls.</param>
+		public async Task KeepAlive(int delay = 60000)
+		{
+			while (true)
+			{
+				try
+				{
+					await SendCommand("");
+				}
+				catch (Exception)
+				{
+					Console.Error.WriteLine($"{DateTime.Now} - Disconnected from {socket.RemoteEndPoint}... Attempting to reconnect.");
+					await Connect(Hostname, Port, Password);
+					return;
+				}
+
+				await Task.Delay(delay);
+			}
+		}
+
+		public async Task StartLogging()
+		{
+			await SendCommand($"logaddress_add {socket.LocalEndPoint}", result =>
+			{
+				Console.WriteLine("Now logging top kljasd");
 			});
 		}
 
@@ -138,6 +167,51 @@ namespace CoreRCON
 			Packet packet = new Packet(++packetId, PacketType.ExecCommand, command);
 			pendingCommands.Add(packetId, result);
 			await SendPacket(packet);
+		}
+
+		/// <summary>
+		/// Event called whenever raw data is received on the socket.
+		/// </summary>
+		private void PacketReceived(object sender, SocketAsyncEventArgs e)
+		{
+			// Parse out the actual RCON packet
+			Packet packet = Packet.FromBytes(e.Buffer);
+
+			Console.WriteLine($"PACKET RECEIVED! {packet.Id}-{packet.Type}-{packet.Body}");
+
+			if (packet.Type == PacketType.AuthResponse)
+			{
+				// Failed auth responses return with an ID of -1
+				if (packet.Id == -1)
+				{
+					throw new AuthenticationException($"Authentication failed for {socket.RemoteEndPoint}.");
+				}
+
+				// Tell Connect that authentication succeeded
+				authenticated.SetResult(true);
+			}
+
+			// Call listeners
+			foreach (var listener in listeners)
+			{
+				listener(packet.Body);
+			}
+
+			// Call pending result and remove from map
+			Action<string> action;
+			if (pendingCommands.TryGetValue(packet.Id, out action))
+			{
+				action?.Invoke(packet.Body);
+				pendingCommands.Remove(packet.Id);
+			}
+
+			// Call parsers
+			foreach (var parser in parsers)
+			{
+				parser.TryCallback(packet.Body);
+			}
+
+			socket.ReceiveAsync(e);
 		}
 	}
 }
