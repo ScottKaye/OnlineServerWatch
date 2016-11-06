@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using System.Reflection;
 using CoreRCON.PacketFormats;
 using System.Net;
+using System.Linq;
 
 namespace CoreRCON
 {
@@ -91,10 +92,9 @@ namespace CoreRCON
 			where T : class
 		{
 			// Instantiate the parser associated with the type parameter
-			var parserAttribute = typeof(T).GetTypeInfo().GetCustomAttribute<ParserAttribute>();
-			if (parserAttribute == null) throw new ArgumentException($"Class {typeof(T).FullName} does not have a Parser attribute.");
-
-			var instance = (IParser<T>)Activator.CreateInstance(parserAttribute.ParserType);
+			var implementor = Assembly.GetEntryAssembly().GetTypes().FirstOrDefault(t => t.GetInterfaces().Contains(typeof(IParser<T>)));
+			if (implementor == null) throw new ArgumentException($"A class implementing {nameof(IParser)}<{typeof(T).FullName}> was not found in the assembly.");
+			var instance = (IParser<T>)Activator.CreateInstance(implementor);
 
 			// Create the parser container
 			parseListeners.Add(new ParserContainer

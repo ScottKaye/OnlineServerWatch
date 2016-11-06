@@ -17,10 +17,16 @@ namespace CoreRCON
 				await rcon.ConnectAsync("192.168.1.8", 27015, "rcon");
 				await rcon.StartLogging("192.168.1.8");
 
-				// Set up a listener for chat messages
+				// Listen for chat messages
 				rcon.Listen<Parsers.Standard.ChatMessage>(chat =>
 				{
 					Console.WriteLine($"Chat message: {chat.Player.Name} said {chat.Message} on channel {chat.Channel}");
+				});
+
+				// Listen for kills
+				rcon.Listen<Parsers.Standard.KillFeed>(kill =>
+				{
+					Console.WriteLine($"Player {kill.Killer.Name} ({kill.Killer.Team}) killed {kill.Killed.Name} ({kill.Killed.Team}) with {kill.Weapon}");
 				});
 
 				// Listen to all raw responses as strings

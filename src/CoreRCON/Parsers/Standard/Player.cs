@@ -1,9 +1,7 @@
-﻿using System;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
 
 namespace CoreRCON.Parsers.Standard
 {
-	[Parser(typeof(PlayerParser))]
 	public class Player
 	{
 		public string Name { get; set; }
@@ -12,16 +10,11 @@ namespace CoreRCON.Parsers.Standard
 		public string Team { get; set; }
 	}
 
-	public class PlayerParser : IParser<Player>
+	public class PlayerParser : DefaultParser<Player>
 	{
-		public string Pattern { get; } = "\"(?<Name>.+?(?:<\\d+?>)?)<(?<ClientID>\\d+?)><(?<SteamID>.+?)><(?<Team>.+?)>\"";
+		public override string Pattern { get; } = "\"(?<Name>.+?(?:<.*>)*)<(?<ClientID>\\d+?)><(?<SteamID>.+?)><(?<Team>.+?)>\"";
 
-		public bool IsMatch(string line)
-		{
-			return new Regex(Pattern).IsMatch(line);
-		}
-
-		public Player Load(GroupCollection groups)
+		public override Player Load(GroupCollection groups)
 		{
 			return new Player
 			{
@@ -30,12 +23,6 @@ namespace CoreRCON.Parsers.Standard
 				ClientId = int.Parse(groups["ClientID"].Value),
 				Team = groups["Team"].Value
 			};
-		}
-
-		public Player Parse(string line)
-		{
-			var groups = new Regex(Pattern).Match(line).Groups;
-			return Load(groups);
 		}
 	}
 }
