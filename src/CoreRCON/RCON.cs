@@ -37,7 +37,7 @@ namespace CoreRCON
 		private List<Action<string>> rawListeners { get; set; } = new List<Action<string>>();
 		private List<Action<LogAddressPacket>> logListeners { get; set; } = new List<Action<LogAddressPacket>>();
 
-		private string Hostname { get; set; }
+		private IPAddress Host { get; set; }
 		private ushort Port { get; set; }
 		private string Password { get; set; }
 		#endregion
@@ -45,21 +45,21 @@ namespace CoreRCON
 		/// <summary>
 		/// Connect to a server through RCON.  Automatically sends the authentication packet.
 		/// </summary>
-		/// <param name="hostname">Resolvable hostname.</param>
+		/// <param name="host">Resolvable hostname.</param>
 		/// <param name="port">Port number RCON is listening on.</param>
 		/// <param name="password">RCON password.</param>
 		/// <returns>Awaitable which will complete when a successful connection is made and authentication is successful.</returns>
-		public async Task ConnectAsync(string hostname, ushort port, string password)
+		public async Task ConnectAsync(IPAddress host, ushort port, string password)
 		{
-			Hostname = hostname;
+			Host = host;
 			Port = port;
 			Password = password;
 
-			if (Hostname == null) throw new NullReferenceException("Hostname cannot be null.");
+			if (Host == null) throw new NullReferenceException("Hostname cannot be null.");
 			if (Password == null) throw new NullReferenceException("Password cannot be null (authentication will always fail).");
 
 			sockets.Reset();
-			await sockets.TCP.ConnectAsync(Hostname, Port);
+			await sockets.TCP.ConnectAsync(Host, Port);
 
 			// Set up TCP listener
 			var e = new SocketAsyncEventArgs();
@@ -73,6 +73,12 @@ namespace CoreRCON
 			authenticated = new TaskCompletionSource<bool>();
 			await SendPacketAsync(new RCONPacket(0, PacketType.Auth, Password));
 			await authenticated.Task;
+		}
+
+		// .NET Core on Linux doesn't support ConnectAsync with a hostname string, so we cheat and make sure it's an IP address
+		public async Task ConnectAsync(string ip, ushort port, string password)
+		{
+			await ConnectAsync(IPAddress.Parse(ip), port, password);
 		}
 
 		/// <summary>
@@ -134,7 +140,7 @@ namespace CoreRCON
 				catch (Exception)
 				{
 					Console.Error.WriteLine($"{DateTime.Now} - Disconnected from {sockets.TCP.RemoteEndPoint}... Attempting to reconnect.");
-					await ConnectAsync(Hostname, Port, Password);
+					await ConnectAsync(Host, Port, Password);
 					return;
 				}
 
@@ -150,7 +156,7 @@ namespace CoreRCON
 			var udpPort = ((IPEndPoint)(sockets.UDP.Client.LocalEndPoint)).Port;
 
 			// Add the UDP client to logaddress
-			await SendCommandAsync($"logaddress_add {Hostname}:{udpPort}");
+			await SendCommandAsync($"logaddress_add {Host}:{udpPort}");
 
 			Task.Run(async () =>
 			{

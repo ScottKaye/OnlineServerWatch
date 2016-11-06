@@ -1,5 +1,6 @@
 ﻿using CoreRCON.PacketFormats;
 using System;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace CoreRCON
