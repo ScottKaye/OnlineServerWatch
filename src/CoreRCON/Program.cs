@@ -1,4 +1,5 @@
-﻿using System;
+﻿using CoreRCON.PacketFormats;
+using System;
 using System.Threading.Tasks;
 
 namespace CoreRCON
@@ -13,7 +14,7 @@ namespace CoreRCON
 			var task = Task.Run(async () =>
 			{
 				var rcon = new RCON();
-				await rcon.Connect("192.168.1.8", 27015, "rcon");
+				await rcon.ConnectAsync("192.168.1.8", 27015, "rcon");
 				await rcon.StartLogging();
 
 				// Set up a listener for any responses that are TF2 statuses
@@ -22,14 +23,22 @@ namespace CoreRCON
 					Console.WriteLine($"A status was parsed - Hostname: {parsed.Hostname}");
 				});
 
-				// Listen to all raw respones as well
+				// Listen to all raw responses as strings
 				rcon.Listen(raw =>
 				{
-					Console.WriteLine($"Raw string: {raw}");
+					Console.WriteLine($"Received a raw string: {raw.Truncate(100).Replace("\n", "")}");
 				});
 
+				// Listen to all raw responses, but get their full packets
+				rcon.Listen((LogAddressPacket packet) =>
+				{
+					Console.WriteLine($"Received a LogAddressPacket: Time - {packet.Timestamp} Body - {packet.Body}");
+				});
+
+				await rcon.SendCommandAsync("status");
+
 				// Reconnect if the connection is ever lost
-				await rcon.KeepAlive();
+				await rcon.KeepAliveAsync();
 			});
 
 			// .Wait() puts exceptions into an AggregateException, while .GetResult() doesn't

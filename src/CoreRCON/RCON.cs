@@ -2,10 +2,10 @@
 using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
-using System.Threading;
 using System.Threading.Tasks;
 using System.Reflection;
-using System.Security;
+using CoreRCON.PacketFormats;
+using System.Net;
 
 namespace CoreRCON
 {
@@ -18,9 +18,9 @@ namespace CoreRCON
 		private static int packetId = 1;
 
 		/// <summary>
-		/// Socket object used to connect to RCON.
+		/// Socket objects used to connect to RCON.
 		/// </summary>
-		private Socket socket { get; set; }
+		private RCONClients sockets { get; set; } = new RCONClients();
 
 		/// <summary>
 		/// Map of pending command references.  These are called when a command with the matching Id (key) is received.  Commands are called only once.
@@ -32,15 +32,10 @@ namespace CoreRCON
 		/// </summary>
 		private TaskCompletionSource<bool> authenticated;
 
-		/// <summary>
-		/// List of listeners to be polled whenever a packet is received.
-		/// </summary>
-		private List<ParserContainer> parsers { get; set; } = new List<ParserContainer>();
-
-		/// <summary>
-		/// Raw string listeners
-		/// </summary>
-		private List<Action<string>> listeners { get; set; } = new List<Action<string>>();
+		// Lists of listeners to be polled whenever a packet is received.
+		private List<ParserContainer> parseListeners { get; set; } = new List<ParserContainer>();
+		private List<Action<string>> rawListeners { get; set; } = new List<Action<string>>();
+		private List<Action<LogAddressPacket>> logListeners { get; set; } = new List<Action<LogAddressPacket>>();
 
 		private string Hostname { get; set; }
 		private ushort Port { get; set; }
@@ -54,7 +49,7 @@ namespace CoreRCON
 		/// <param name="port">Port number RCON is listening on.</param>
 		/// <param name="password">RCON password.</param>
 		/// <returns>Awaitable which will complete when a successful connection is made and authentication is successful.</returns>
-		public async Task Connect(string hostname, ushort port, string password)
+		public async Task ConnectAsync(string hostname, ushort port, string password)
 		{
 			Hostname = hostname;
 			Port = port;
@@ -63,25 +58,26 @@ namespace CoreRCON
 			if (Hostname == null) throw new NullReferenceException("Hostname cannot be null.");
 			if (Password == null) throw new NullReferenceException("Password cannot be null (authentication will always fail).");
 
-			socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-			await socket.ConnectAsync(Hostname, Port);
+			sockets.Reset();
+			await sockets.TCP.ConnectAsync(Hostname, Port);
 
-			// Set up listener
+			// Set up TCP listener
 			var e = new SocketAsyncEventArgs();
-			e.Completed += PacketReceived;
+			e.Completed += TCPPacketReceived;
 			e.SetBuffer(new byte[Constants.MAX_PACKET_SIZE], 0, Constants.MAX_PACKET_SIZE);
 
 			// Start listening for responses
-			socket.ReceiveAsync(e);
+			sockets.TCP.ReceiveAsync(e);
 
 			// Wait for successful authentication
 			authenticated = new TaskCompletionSource<bool>();
-			await SendPacket(new Packet(0, PacketType.Auth, Password));
+			await SendPacketAsync(new RCONPacket(0, PacketType.Auth, Password));
 			await authenticated.Task;
 		}
 
 		/// <summary>
 		/// Listens on the socket for a parseable class to read.
+		/// Most useful with StartLogging(), though this will also fire when a response is received from the TCP connection.
 		/// </summary>
 		/// <typeparam name="T">Class to be parsed; must have a ParserAttribute.</typeparam>
 		/// <param name="result">Parsed class.</param>
@@ -95,7 +91,7 @@ namespace CoreRCON
 			var instance = (IParser<T>)Activator.CreateInstance(parserAttribute.ParserType);
 
 			// Create the parser container
-			parsers.Add(new ParserContainer
+			parseListeners.Add(new ParserContainer
 			{
 				IsMatch = line => instance.IsMatch(line),
 				Parse = line => instance.Parse(line),
@@ -107,30 +103,38 @@ namespace CoreRCON
 		}
 
 		/// <summary>
-		/// Listens on the socket for anything.
+		/// Listens on the socket for anything, returning just the body of the packet.
+		/// Most useful with StartLogging(), though this will also fire when a response is received from the TCP connection.
 		/// </summary>
 		/// <param name="result">Raw string returned by the server.</param>
 		public void Listen(Action<string> result)
 		{
-			listeners.Add(result);
+			rawListeners.Add(result);
+		}
+
+		/// <summary>
+		/// Listens on the socket for anything from LogAddress, returning the full packet.
+		/// StartLogging() should be run with this.
+		/// </summary>
+		/// <param name="result">Parsed LogAddress packet.</param>
+		public void Listen(Action<LogAddressPacket> result)
+		{
+			logListeners.Add(result);
 		}
 
 		/// <summary>
 		/// Polls the server to check if RCON is still authenticated.  Will still throw if the password was changed elsewhere.
 		/// </summary>
 		/// <param name="delay">Time in milliseconds to wait between polls.</param>
-		public async Task KeepAlive(int delay = 60000)
+		public async Task KeepAliveAsync(int delay = 60000)
 		{
 			while (true)
 			{
-				try
-				{
-					await SendCommand("");
-				}
+				try { await SendCommandAsync(""); }
 				catch (Exception)
 				{
-					Console.Error.WriteLine($"{DateTime.Now} - Disconnected from {socket.RemoteEndPoint}... Attempting to reconnect.");
-					await Connect(Hostname, Port, Password);
+					Console.Error.WriteLine($"{DateTime.Now} - Disconnected from {sockets.TCP.RemoteEndPoint}... Attempting to reconnect.");
+					await ConnectAsync(Hostname, Port, Password);
 					return;
 				}
 
@@ -138,21 +142,36 @@ namespace CoreRCON
 			}
 		}
 
+		/// <summary>
+		/// Opens a socket to receive LogAddress logs, and registers it with the server.
+		/// </summary>
 		public async Task StartLogging()
 		{
-			await SendCommand($"logaddress_add {socket.LocalEndPoint}", result =>
+			var udpPort = ((IPEndPoint)(sockets.UDP.Client.LocalEndPoint)).Port;
+
+			// Add the UDP client to logaddress
+			await SendCommandAsync($"logaddress_add {Hostname}:{udpPort}");
+
+			Task.Run(async () =>
 			{
-				Console.WriteLine("Now logging top kljasd");
-			});
+				while (true)
+				{
+					var result = await sockets.UDP.ReceiveAsync();
+
+					// Parse out the LogAddress packet
+					LogAddressPacket packet = LogAddressPacket.FromBytes(result.Buffer);
+					LogAddressPacketReceived(packet);
+				}
+			}).DoNotAwait();
 		}
 
 		/// <summary>
 		/// Send a packet to the server.
 		/// </summary>
 		/// <param name="packet">Packet to send, which will be serialized.</param>
-		public async Task SendPacket(Packet packet)
+		public async Task SendPacketAsync(RCONPacket packet)
 		{
-			socket.Send(packet.ToBytes());
+			sockets.TCP.Send(packet.ToBytes());
 			await Task.Delay(10);
 		}
 
@@ -161,42 +180,43 @@ namespace CoreRCON
 		/// </summary>
 		/// <param name="command">Command to send to the server.</param>
 		/// <param name="result">Response from the server.</param>
-		public async Task SendCommand(string command, Action<string> result = null)
+		public async Task SendCommandAsync(string command, Action<string> result = null)
 		{
 			// Get a unique integer
-			Packet packet = new Packet(++packetId, PacketType.ExecCommand, command);
+			RCONPacket packet = new RCONPacket(++packetId, PacketType.ExecCommand, command);
 			pendingCommands.Add(packetId, result);
-			await SendPacket(packet);
+			await SendPacketAsync(packet);
 		}
 
 		/// <summary>
-		/// Event called whenever raw data is received on the socket.
+		/// Event called whenever raw data is received on the TCP socket.
 		/// </summary>
-		private void PacketReceived(object sender, SocketAsyncEventArgs e)
+		private void TCPPacketReceived(object sender, SocketAsyncEventArgs e)
 		{
 			// Parse out the actual RCON packet
-			Packet packet = Packet.FromBytes(e.Buffer);
-
-			Console.WriteLine($"PACKET RECEIVED! {packet.Id}-{packet.Type}-{packet.Body}");
+			RCONPacket packet = RCONPacket.FromBytes(e.Buffer);
 
 			if (packet.Type == PacketType.AuthResponse)
 			{
 				// Failed auth responses return with an ID of -1
 				if (packet.Id == -1)
 				{
-					throw new AuthenticationException($"Authentication failed for {socket.RemoteEndPoint}.");
+					throw new AuthenticationException($"Authentication failed for {sockets.TCP.RemoteEndPoint}.");
 				}
 
 				// Tell Connect that authentication succeeded
 				authenticated.SetResult(true);
 			}
 
-			// Call listeners
-			foreach (var listener in listeners)
-			{
-				listener(packet.Body);
-			}
+			// Forward to handler
+			RCONPacketReceived(packet);
 
+			// Continue listening
+			sockets.TCP.ReceiveAsync(e);
+		}
+
+		private void RCONPacketReceived(RCONPacket packet)
+		{
 			// Call pending result and remove from map
 			Action<string> action;
 			if (pendingCommands.TryGetValue(packet.Id, out action))
@@ -205,13 +225,28 @@ namespace CoreRCON
 				pendingCommands.Remove(packet.Id);
 			}
 
-			// Call parsers
-			foreach (var parser in parsers)
-			{
-				parser.TryCallback(packet.Body);
-			}
+			CallListeners(packet.Body);
+		}
 
-			socket.ReceiveAsync(e);
+		private void LogAddressPacketReceived(LogAddressPacket packet)
+		{
+			// Call LogAddress listeners
+			foreach (var listener in logListeners)
+				listener(packet);
+
+			// Lower priority
+			CallListeners(packet.RawBody);
+		}
+
+		private void CallListeners(string body)
+		{
+			// Call parsers
+			foreach (var parser in parseListeners)
+				parser.TryCallback(body);
+
+			// Call raw listeners
+			foreach (var listener in rawListeners)
+				listener(body);
 		}
 	}
 }

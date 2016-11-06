@@ -2,9 +2,9 @@
 using System.IO;
 using System.Text;
 
-namespace CoreRCON
+namespace CoreRCON.PacketFormats
 {
-	public struct Packet
+	public struct RCONPacket
 	{
 		public readonly int Id;
 		public readonly PacketType Type;
@@ -16,7 +16,7 @@ namespace CoreRCON
 		/// <param name="id">Some kind of identifier to keep track of responses from the server.</param>
 		/// <param name="type">What the server is supposed to do with the body of this packet.</param>
 		/// <param name="body">The actual information held within.</param>
-		public Packet(int id, PacketType type, string body)
+		public RCONPacket(int id, PacketType type, string body)
 		{
 			Id = id;
 			Type = type;
@@ -48,7 +48,7 @@ namespace CoreRCON
 		/// </summary>
 		/// <param name="buffer">Buffer to read.</param>
 		/// <returns>Created packet.</returns>
-		internal static Packet FromBytes(byte[] buffer)
+		internal static RCONPacket FromBytes(byte[] buffer)
 		{
 			if (buffer == null) throw new NullReferenceException("Byte buffer cannot be null.");
 			if (buffer.Length < 4) throw new InvalidDataException("Buffer does not contain a size field.");
@@ -62,7 +62,9 @@ namespace CoreRCON
 			PacketType type = (PacketType)BitConverter.ToInt32(buffer, 8);
 
 			char[] body = Encoding.UTF8.GetChars(buffer, 12, size - 10);
-			return new Packet(id, type, new string(body, 0, size - 10).TrimEnd());
+			return new RCONPacket(id, type, new string(body, 0, size - 10).TrimEnd());
 		}
+
+		public override string ToString() => Body;
 	}
 }
