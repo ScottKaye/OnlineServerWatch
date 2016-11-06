@@ -17,10 +17,10 @@ namespace CoreRCON
 				await rcon.ConnectAsync("192.168.1.8", 27015, "rcon");
 				await rcon.StartLogging("192.168.1.8");
 
-				// Set up a listener for any responses that are TF2 statuses
-				rcon.Listen<Parsers.TF2.TF2Status>(parsed =>
+				// Set up a listener for chat messages
+				rcon.Listen<Parsers.Standard.ChatMessage>(chat =>
 				{
-					Console.WriteLine($"A status was parsed - Hostname: {parsed.Hostname}");
+					Console.WriteLine($"Chat message: {chat.Player.Name} said {chat.Message} on channel {chat.Channel}");
 				});
 
 				// Listen to all raw responses as strings
@@ -34,8 +34,6 @@ namespace CoreRCON
 				{
 					Console.WriteLine($"Received a LogAddressPacket: Time - {packet.Timestamp} Body - {packet.Body}");
 				});
-
-				await rcon.SendCommandAsync("status");
 
 				// Reconnect if the connection is ever lost
 				await rcon.KeepAliveAsync();
