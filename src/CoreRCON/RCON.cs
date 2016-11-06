@@ -149,14 +149,19 @@ namespace CoreRCON
 		}
 
 		/// <summary>
-		/// Opens a socket to receive LogAddress logs, and registers it with the server.
+		/// Opens a socket to receive LogAddress logs, and registers it with the server.  The IP can also be a local IP if the server is on the same network.
 		/// </summary>
-		public async Task StartLogging()
+		/// <param name="sendToIp">The IP address to tell the server where to send logs.</param>
+		public async Task StartLogging(string sendToIp)
 		{
+			IPAddress parsed;
+			if (!IPAddress.TryParse(sendToIp, out parsed)) throw new ArgumentException($"{sendToIp} is not a valid IP address.");
+			if (parsed.AddressFamily != AddressFamily.InterNetwork) throw new ArgumentException($"{nameof(sendToIp)} must be an IPv4 address.");
+
 			var udpPort = ((IPEndPoint)(sockets.UDP.Client.LocalEndPoint)).Port;
 
 			// Add the UDP client to logaddress
-			await SendCommandAsync($"logaddress_add {Host}:{udpPort}");
+			await SendCommandAsync($"logaddress_add {sendToIp}:{udpPort}");
 
 			Task.Run(async () =>
 			{
@@ -246,6 +251,8 @@ namespace CoreRCON
 
 		private void CallListeners(string body)
 		{
+			if (body.Length < 1) return;
+
 			// Call parsers
 			foreach (var parser in parseListeners)
 				parser.TryCallback(body);

@@ -1,6 +1,5 @@
 ﻿using CoreRCON.PacketFormats;
 using System;
-using System.Net;
 using System.Threading.Tasks;
 
 namespace CoreRCON
@@ -16,7 +15,7 @@ namespace CoreRCON
 			{
 				var rcon = new RCON();
 				await rcon.ConnectAsync("192.168.1.8", 27015, "rcon");
-				await rcon.StartLogging();
+				await rcon.StartLogging("192.168.1.8");
 
 				// Set up a listener for any responses that are TF2 statuses
 				rcon.Listen<Parsers.TF2.TF2Status>(parsed =>
