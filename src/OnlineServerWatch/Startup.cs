@@ -1,18 +1,38 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.SignalR.Infrastructure;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using OnlineServerWatch.Models.Configuration;
+using OnlineServerWatch.Models.Connections;
 
 namespace OnlineServerWatch
 {
 	public class Startup
 	{
-		public void ConfigureServices(IServiceCollection services)
+		public static IConfigurationRoot Configuration { get; private set; }
+
+		public Startup(IHostingEnvironment env)
 		{
-			services.AddMvc();
+			var builder = new ConfigurationBuilder()
+				.SetBasePath(env.ContentRootPath);
+
+			Configuration = builder.Build();
 		}
 
-		public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
+		public void ConfigureServices(IServiceCollection services)
+		{
+			services.AddSignalR(options =>
+			{
+				options.Hubs.EnableDetailedErrors = true;
+			});
+			services.AddMvc();
+			services.AddOptions();
+		}
+
+		public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, IConnectionManager connectionManager)
 		{
 			loggerFactory.AddConsole(LogLevel.Warning);
 
@@ -22,6 +42,7 @@ namespace OnlineServerWatch
 			}
 
 			app.UseStaticFiles();
+
 			app.UseMvc(routes =>
 			{
 				routes.MapRoute(
@@ -29,6 +50,11 @@ namespace OnlineServerWatch
 					template: "{controller=Home}/{action=Index}/{id?}"
 				);
 			});
+
+			app.UseWebSockets();
+			app.UseSignalR("/signalr");
+
+			new RCONService(connectionManager);
 		}
 	}
 }

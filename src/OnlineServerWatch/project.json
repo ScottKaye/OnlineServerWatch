@@ -1,19 +1,20 @@
 {
 	"dependencies": {
-        "CoreRCON": "0.0.1",
-        "Microsoft.AspNetCore.Diagnostics": "1.0.0",
-        "Microsoft.AspNetCore.Mvc": "1.0.1",
-        "Microsoft.AspNetCore.Server.IISIntegration": "1.0.0",
-        "Microsoft.AspNetCore.Server.Kestrel": "1.0.1",
-        "Microsoft.AspNetCore.StaticFiles": "1.0.0",
-        "Microsoft.Extensions.Logging.Console": "1.0.0",
-        "Microsoft.NETCore.App": {
-            "version": "1.0.0",
-            "type": "platform"
-        }
-	},
-
-	"tools": {
+		"CoreRCON": "0.0.2",
+		"Microsoft.AspNetCore.Diagnostics": "1.0.0",
+		"Microsoft.AspNetCore.Mvc": "1.1.0-preview1-final",
+		"Microsoft.AspNetCore.Server.IISIntegration": "1.0.0",
+		"Microsoft.AspNetCore.Server.Kestrel": "1.0.1",
+		"Microsoft.AspNetCore.SignalR.Server": "0.1.0",
+		"Microsoft.AspNetCore.StaticFiles": "1.0.0",
+					"Microsoft.AspNetCore.WebSockets": "0.2.0-preview1-final",
+					"Microsoft.Extensions.Configuration.FileExtensions": "1.0.0",
+					"Microsoft.Extensions.Logging.Console": "1.0.0",
+					"Microsoft.Extensions.Options.ConfigurationExtensions": "1.0.0",
+					"Microsoft.NETCore.App": {
+						"version": "1.0.0",
+						"type": "platform"
+					}
 	},
 
 	"frameworks": {

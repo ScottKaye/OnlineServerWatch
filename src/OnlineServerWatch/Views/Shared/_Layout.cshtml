@@ -2,12 +2,27 @@
 
 <html>
 <head>
-    <meta name="viewport" content="width=device-width" />
-    <title>@ViewBag.Title</title>
+	<meta name="viewport" content="width=device-width" />
+	<title>@ViewBag.Title</title>
 </head>
 <body>
-    <div>
-        @RenderBody()
-    </div>
+	<div>
+		@RenderBody()
+	</div>
+
+	<script src="~/js/jquery-3.1.1.min.js"></script>
+	<script src="~/js/signalr.min.js"></script>
+	<script>
+		const connection = $.hubConnection();
+
+		const hub = connection.createHubProxy("RCONHub");
+		hub.on("SendMessage", message => {
+			console.log(message);
+		});
+
+		connection.start().done(() => {
+			console.log("Connected");
+		});
+	</script>
 </body>
 </html>
