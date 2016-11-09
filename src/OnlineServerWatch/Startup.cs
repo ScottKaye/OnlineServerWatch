@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OnlineServerWatch.Models.Configuration;
 using OnlineServerWatch.Models.Connections;
+using System.Collections.Generic;
 
 namespace OnlineServerWatch
 {
@@ -17,22 +18,38 @@ namespace OnlineServerWatch
 		public Startup(IHostingEnvironment env)
 		{
 			var builder = new ConfigurationBuilder()
-				.SetBasePath(env.ContentRootPath);
+				.SetBasePath(env.ContentRootPath)
+				.AddJsonFile("servers.json", false, true);
 
 			Configuration = builder.Build();
 		}
 
 		public void ConfigureServices(IServiceCollection services)
 		{
+			services.AddMvc();
+			services.AddOptions();
+
 			services.AddSignalR(options =>
 			{
 				options.Hubs.EnableDetailedErrors = true;
 			});
-			services.AddMvc();
-			services.AddOptions();
+
+			// Manually build the Server list
+			services.Configure<List<Server>>(options =>
+			{
+				foreach (var child in Configuration.GetSection("Servers").GetChildren())
+				{
+					var server = new Server();
+					child.Bind(server);
+
+					// Manually bind password
+					server.Password = child.GetValue<string>("Password");
+					options.Add(server);
+				}
+			});
 		}
 
-		public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, IConnectionManager connectionManager)
+		public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, IConnectionManager connectionManager, IOptions<List<Server>> servers)
 		{
 			loggerFactory.AddConsole(LogLevel.Warning);
 
@@ -54,7 +71,7 @@ namespace OnlineServerWatch
 			app.UseWebSockets();
 			app.UseSignalR("/signalr");
 
-			new RCONService(connectionManager);
+			new RCONService(connectionManager, servers);
 		}
 	}
 }

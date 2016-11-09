@@ -16,8 +16,8 @@
 		const connection = $.hubConnection();
 
 		const hub = connection.createHubProxy("RCONHub");
-		hub.on("SendMessage", message => {
-			console.log(message);
+		hub.on("SendMessage", (server, message) => {
+			console.log(server, message);
 		});
 
 		connection.start().done(() => {

@@ -1,7 +1,10 @@
 ﻿using CoreRCON;
 using CoreRCON.Parsers.Standard;
 using Microsoft.AspNetCore.SignalR.Infrastructure;
+using Microsoft.Extensions.Options;
 using OnlineServerWatch.Hubs;
+using OnlineServerWatch.Models.Configuration;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
 
@@ -10,33 +13,42 @@ namespace OnlineServerWatch.Models.Connections
 	public class RCONService
 	{
 		private IConnectionManager ConnectionManager { get; set; }
+		private List<Server> Servers { get; set; }
 
-		public RCONService(IConnectionManager connectionManager)
+		public RCONService(IConnectionManager connectionManager, IOptions<List<Server>> servers)
 		{
 			ConnectionManager = connectionManager;
+			Servers = servers.Value;
 
 			var context = ConnectionManager.GetHubContext<RCONHub>();
 
-			// Connect to RCON
-			Task.Run(async () =>
+			foreach (var server in Servers)
 			{
-				var rcon = new RCON();
-				await rcon.ConnectAsync("192.168.1.8", 27015, "rcon");
-				await rcon.StartLogging("192.168.1.8");
-
-				rcon.Listen<ChatMessage>(message =>
+				// Connect to RCON
+				Task.Run(async () =>
 				{
-					context.Clients.All.SendMessage(message);
-				});
+					var rcon = new RCON();
+					await rcon.ConnectAsync(
+						ip: server.IP,
+						port: server.Port,
+						password: server.Password
+					);
+					await rcon.StartLogging("192.168.1.8"); // TODO get public IP of server
 
-				// Listen to all raw responses, but get their full packets
-				rcon.Listen((CoreRCON.PacketFormats.LogAddressPacket packet) =>
-				{
-					Debug.WriteLine(packet.RawBody);
-				});
+					rcon.Listen<ChatMessage>(message =>
+					{
+						context.Clients.All.SendMessage(server, message);
+					});
 
-				await rcon.KeepAliveAsync();
-			});
+					// Listen to all raw responses, but get their full packets
+					rcon.Listen((CoreRCON.PacketFormats.LogAddressPacket packet) =>
+					{
+						Debug.WriteLine(packet.RawBody);
+					});
+
+					await rcon.KeepAliveAsync();
+				});
+			}
 		}
 	}
 }

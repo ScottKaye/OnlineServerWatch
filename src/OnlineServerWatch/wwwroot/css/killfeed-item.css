@@ -1,0 +1,34 @@
+.killfeed {
+	display: flex;
+	flex-direction: column;
+	align-items: flex-start;
+}
+
+.killfeed-item {
+	font-family: Tahoma, sans-serif;
+	font-weight: 700;
+	font-size: 11pt;
+	background: #ddcfb2;
+	height: 30px;
+	display: inline-flex;
+	align-items: center;
+	padding: 5px 20px;
+	border-radius: 5px;
+	margin-bottom: 5px;
+}
+
+	.killfeed-item .killfeed-player {
+		padding: 0 0.4em;
+	}
+
+	.killfeed-item .team-blue {
+		color: #737f95;
+	}
+
+	.killfeed-item .team-red {
+		color: #a56c59;
+	}
+
+	.killfeed-item .ki {
+		margin: 0 20px;
+	}
