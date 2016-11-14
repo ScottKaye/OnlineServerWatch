@@ -1,6 +1,7 @@
 ﻿{
 	"Servers": [
 		{
+			"Name": "Test Server",
 			"IP": "192.168.1.8",
 			"Port": 27015,
 			"Password": "rcon"

@@ -15,6 +15,14 @@
 	animation: ki-pulse 1s ease infinite alternate;
 }
 
+.ki.white {
+	background-image: url(/img/killicons-white.png);
+}
+
+.ki.white.ki-crit::before, .ki.white.ki-australium::before {
+	mix-blend-mode: lighten;
+}
+
 @keyframes ki-pulse {
 	0% {
 		opacity: 0.8;
@@ -619,7 +627,7 @@
 	height: 32px;
 }
 
-.ki-grenadelauncher {
+.ki-tf_projectile_pipe {
 	background-position: -105px -351px;
 	width: 96px;
 	height: 32px;
@@ -655,7 +663,7 @@
 	height: 25px;
 }
 
-.ki-hamshank {
+.ki-ham_shank {
 	background-position: -498px -637px;
 	width: 61px;
 	height: 31px;
@@ -721,7 +729,7 @@
 	height: 32px;
 }
 
-.ki-huolongheater {
+.ki-huo_long_heater {
 	background-position: -193px -468px;
 	width: 91px;
 	height: 32px;
@@ -733,7 +741,7 @@
 	height: 32px;
 }
 
-.ki-ironcurtain {
+.ki-iron_curtain {
 	background-position: -389px -373px;
 	width: 90px;
 	height: 29px;
@@ -805,7 +813,7 @@
 	height: 31px;
 }
 
-.ki-lugermorph {
+.ki-maxgun {
 	background-position: -309px -509px;
 	width: 71px;
 	height: 32px;
@@ -841,7 +849,7 @@
 	height: 26px;
 }
 
-.ki-marketgardener {
+.ki-market_gardener {
 	background-position: -575px -337px;
 	width: 81px;
 	height: 22px;
@@ -925,7 +933,7 @@
 	height: 32px;
 }
 
-.ki-necrosmasher {
+.ki-necro_smasher {
 	background-position: -747px -228px;
 	width: 47px;
 	height: 28px;
@@ -955,7 +963,7 @@
 	height: 32px;
 }
 
-.ki-original {
+.ki-quake_rl {
 	background-position: 0 -170px;
 	width: 125px;
 	height: 32px;
@@ -1219,7 +1227,7 @@
 	height: 33px;
 }
 
-.ki-showdown {
+.ki-taunt_heavy {
 	background-position: -739px -326px;
 	width: 56px;
 	height: 31px;
@@ -1309,7 +1317,7 @@
 	height: 21px;
 }
 
-.ki-stickybomblauncher {
+.ki-tf_projectile_pipe_remote {
 	background-position: -675px -35px;
 	width: 86px;
 	height: 31px;

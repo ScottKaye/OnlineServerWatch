@@ -4,25 +4,17 @@
 <head>
 	<meta name="viewport" content="width=device-width" />
 	<title>@ViewBag.Title</title>
+	<link rel="stylesheet" href="~/css/site.min.css" />
 </head>
 <body>
 	<div>
 		@RenderBody()
 	</div>
 
-	<script src="~/js/jquery-3.1.1.min.js"></script>
-	<script src="~/js/signalr.min.js"></script>
-	<script>
-		const connection = $.hubConnection();
-
-		const hub = connection.createHubProxy("RCONHub");
-		hub.on("SendMessage", (server, message) => {
-			console.log(server, message);
-		});
-
-		connection.start().done(() => {
-			console.log("Connected");
-		});
-	</script>
+	<script src="~/js/vendor/jquery-3.1.1.min.js"></script>
+	<script src="~/js/vendor/signalr.min.js"></script>
+	<script src="/signalr/js"></script>
+	<script src="~/js/vendor/vue.js"></script>
+	@RenderSection("Scripts", false)
 </body>
 </html>

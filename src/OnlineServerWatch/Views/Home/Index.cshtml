@@ -1,1 +1,100 @@
-﻿
+﻿<div id="app">
+	<div class="server" v-for="server in serverList">
+		<div class="column">
+			<header>
+				<span class="server__title">{{ server.Status.Hostname }}</span>
+				<i class="indicator indicator--green"></i>
+			</header>
+			<table class="server__players" v-if="server.Players != null">
+				<tr class="player" v-for="player in server.Players">
+					<td class="player__name">{{ player.Name }}</td>
+					<td class="player__score">582</td>
+					<td class="player__time">2:13:44</td>
+				</tr>
+			</table>
+			<span v-else class="server__empty">Server is empty.</span>
+		</div>
+		<div class="column column--auto">
+			<header>
+				<span class="server__players">{{ server.Status.Humans }}/{{ server.Status.MaxPlayers }} ({{ server.Status.Bots }} bots)</span>
+				<span class="server__map">ctf_2fort</span>
+			</header>
+
+			<transition-group tag="ul" class="server__killfeed" name="chat-show">
+				<li class="kill" v-for="kill in server.Kills" :key="kill">
+					<span class="kill__killer">{{ kill.Killer.Name }}</span>
+					<i class="kill__weapon ki white" v-bind:class="'ki-' + kill.Weapon"></i>
+					<span class="kill__killed">{{ kill.Killed.Name }}</span>
+				</li>
+			</transition-group>
+
+			<transition-group tag="ul" class="server__chat" name="chat-show">
+				<li class="chat" v-for="chat in server.Chats" v-bind:class="{
+					'chat--highlighted': chat.Highlighted,
+					'chat--special': chat.Player.ClientId == 0
+				}" :key="chat">
+					<span class="chat__author">{{ chat.Player.Name }}</span>
+					<div class="chat__message">{{ chat.Message }}</div>
+				</li>
+			</transition-group>
+		</div>
+	</div>
+</div>
+
+@section Scripts {
+	<script>
+		(function () {
+			const vm = new Vue({
+				el: "#app",
+				data: {
+					serverList: []
+				}
+			});
+
+			const hub = $.connection.RCONHub;
+
+			hub.client.updateAll = servers => {
+				console.log("All servers:", servers);
+				vm.serverList = servers;
+			};
+
+			hub.client.chat = (server, chat) => {
+				console.log("Chat:", server, chat);
+
+				// Highlight chat message?
+				if (chat.Message.includes("!admin") || chat.Message.includes("!report")) {
+					chat.Highlighted = true;
+					// TODO send desktop notification
+				}
+
+				let s = vm.serverList.find(s => s.RuntimeId == server.RuntimeId);
+				if (!s.Chats) Vue.set(s, "Chats", []);
+				s.Chats.unshift(chat);
+
+				// Cleanup
+				if (s.Chats.length > 50) {
+					setTimeout(() => {
+						Vue.set(s, "Chats", s.Chats.slice(0, 50));
+					}, 1000);
+				}
+			};
+
+			hub.client.kill = (server, kill) => {
+				let s = vm.serverList.find(s => s.RuntimeId == server.RuntimeId);
+				if (!s.Kills) Vue.set(s, "Kills", []);
+				s.Kills.unshift(kill);
+
+				// Cleanup
+				if (s.Kills.length > 50) {
+					setTimeout(() => {
+						Vue.set(s, "Kills", s.Kills.slice(0, 50));
+					}, 1000);
+				}
+			};
+
+			$.connection.hub.start().done(() => {
+				console.log("Connected");
+			});
+		}());
+	</script>
+}

@@ -7,6 +7,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OnlineServerWatch.Models.Configuration;
 using OnlineServerWatch.Models.Connections;
+using OnlineServerWatch.Models.Game;
 using System.Collections.Generic;
 
 namespace OnlineServerWatch
@@ -71,7 +72,9 @@ namespace OnlineServerWatch
 			app.UseWebSockets();
 			app.UseSignalR("/signalr");
 
-			new RCONService(connectionManager, servers);
+			GameServerManager.ConnectionManager = connectionManager;
+			GameServerManager.Import(servers);
+			RCONService.Start();
 		}
 	}
 }
