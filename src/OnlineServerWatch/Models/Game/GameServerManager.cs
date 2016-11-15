@@ -31,6 +31,11 @@ namespace OnlineServerWatch.Models.Game
 				{
 					context.Clients.All.Kill(gameServer, kill);
 				};
+
+				gameServer.OnServerInfoUpdated += () =>
+				{
+					context.Clients.All.Update(gameServer);
+				};
 			}
 		}
 	}

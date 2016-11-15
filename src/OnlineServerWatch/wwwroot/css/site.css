@@ -59,6 +59,13 @@ body {
   .indicator.indicator--green {
     background: #4cf08a;
     box-shadow: 0 0 5px #4cf08a; }
+  .indicator.indicator--red {
+    background: #ff6767;
+    box-shadow: 0 0 5px #ff6767; }
+
+.error {
+  color: #ff6767;
+  padding: 5px 10px; }
 
 .player .player__score,
 .player .player__time {
@@ -85,9 +92,9 @@ body {
     box-shadow: 0 0 5px #b1d6ff;
     border-radius: 0 15px 15px 0; }
   .chat.chat--special .chat__message {
-    background: red;
+    background: #ff6767;
     color: #22252e;
-    box-shadow: 0 0 5px red; }
+    box-shadow: 0 0 5px #ff6767; }
   .chat .chat__author {
     display: block;
     margin-bottom: 5px;
@@ -708,7 +715,7 @@ body {
   width: 53px;
   height: 32px; }
 
-.ki-huolongheater {
+.ki-huo_long_heater {
   background-position: -193px -468px;
   width: 91px;
   height: 32px; }
@@ -718,7 +725,7 @@ body {
   width: 121px;
   height: 32px; }
 
-.ki-ironcurtain {
+.ki-iron_curtain {
   background-position: -389px -373px;
   width: 90px;
   height: 29px; }
@@ -878,7 +885,7 @@ body {
   width: 73px;
   height: 32px; }
 
-.ki-necrosmasher {
+.ki-necro_smasher {
   background-position: -747px -228px;
   width: 47px;
   height: 28px; }
@@ -1123,7 +1130,7 @@ body {
   width: 90px;
   height: 33px; }
 
-.ki-showdown {
+.ki-taunt_heavy {
   background-position: -739px -326px;
   width: 56px;
   height: 31px; }

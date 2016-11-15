@@ -85,6 +85,16 @@ body {
 		background: $green;
 		box-shadow: 0 0 5px $green;
 	}
+
+	&.indicator--red {
+		background: $red;
+		box-shadow: 0 0 5px $red;
+	}
+}
+
+.error {
+	color: $red;
+	padding: 5px 10px;
 }
 
 .player {
@@ -120,9 +130,9 @@ body {
 	}
 
 	&.chat--special .chat__message {
-		background: red;
+		background: $red;
 		color: $background;
-		box-shadow: 0 0 5px red;
+		box-shadow: 0 0 5px $red;
 	}
 
 	.chat__author {

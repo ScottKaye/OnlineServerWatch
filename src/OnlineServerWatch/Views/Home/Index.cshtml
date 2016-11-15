@@ -2,10 +2,10 @@
 	<div class="server" v-for="server in serverList">
 		<div class="column">
 			<header>
-				<span class="server__title">{{ server.Status.Hostname }}</span>
-				<i class="indicator indicator--green"></i>
+				<span class="server__title">{{ server.ServerConfiguration.Name || server.Status.Hostname }}</span>
+				<i class="indicator" :class="server.Connected ? 'indicator--green' : 'indicator--red'"></i>
 			</header>
-			<table class="server__players" v-if="server.Players != null">
+			<table class="server__players" v-if="server.Players.length > 0">
 				<tr class="player" v-for="player in server.Players">
 					<td class="player__name">{{ player.Name }}</td>
 					<td class="player__score">582</td>
@@ -14,9 +14,9 @@
 			</table>
 			<span v-else class="server__empty">Server is empty.</span>
 		</div>
-		<div class="column column--auto">
+		<div class="column column--auto" v-if="server.Connected">
 			<header>
-				<span class="server__players">{{ server.Status.Humans }}/{{ server.Status.MaxPlayers }} ({{ server.Status.Bots }} bots)</span>
+				<span class="server__players">{{ server.Players.length }}/{{ server.Status.MaxPlayers }}</span>
 				<span class="server__map">ctf_2fort</span>
 			</header>
 
@@ -38,6 +38,9 @@
 				</li>
 			</transition-group>
 		</div>
+		<div v-else class="error">
+			Can't connect to a server at {{ server.ServerConfiguration.IP }}:{{ server.ServerConfiguration.Port }}.
+		</div>
 	</div>
 </div>
 
@@ -56,6 +59,15 @@
 			hub.client.updateAll = servers => {
 				console.log("All servers:", servers);
 				vm.serverList = servers;
+			};
+
+			hub.client.update = server => {
+				console.log("Updated server:", server);
+
+				let existing = vm.serverList.find(s => s.RuntimeId == server.RuntimeId);
+				Vue.set(existing, "Players", server.Players);
+				Vue.set(existing, "Status", server.Status);
+				existing.Connected = server.Connected;
 			};
 
 			hub.client.chat = (server, chat) => {
