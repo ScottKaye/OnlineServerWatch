@@ -3,16 +3,18 @@
 		<div class="column">
 			<header>
 				<span class="server__title">{{ server.ServerConfiguration.Name || server.Status.Hostname }}</span>
-				<i class="indicator" :class="server.Connected ? 'indicator--green' : 'indicator--red'"></i>
+				<i class="indicator" v-bind:class="server.Connected ? 'indicator--green' : 'indicator--red'"></i>
 			</header>
-			<table class="server__players" v-if="server.Players.length > 0">
-				<tr class="player" v-for="player in server.Players">
-					<td class="player__name">{{ player.Name }}</td>
-					<td class="player__score">582</td>
-					<td class="player__time">2:13:44</td>
-				</tr>
-			</table>
-			<span v-else class="server__empty">Server is empty.</span>
+			<div class="server__maxheight">
+				<table class="server__players" v-if="server.Players.length > 0">
+					<tr class="player" v-for="player in server.Players">
+						<td class="player__name">{{ player.Name }}</td>
+						<td class="player__score">582</td>
+						<td class="player__time">2:13:44</td>
+					</tr>
+				</table>
+				<span v-else class="server__empty">Server is empty.</span>
+			</div>
 		</div>
 		<div class="column column--auto" v-if="server.Connected">
 			<header>
@@ -20,19 +22,8 @@
 				<span class="server__map">ctf_2fort</span>
 			</header>
 
-			<transition-group tag="ul" class="server__killfeed" name="chat-show">
-				<li class="kill" v-for="kill in server.Kills" :key="kill">
-					<span class="kill__killer">{{ kill.Killer.Name }}</span>
-					<i class="kill__weapon ki white" v-bind:class="'ki-' + kill.Weapon"></i>
-					<span class="kill__killed">{{ kill.Killed.Name }}</span>
-				</li>
-			</transition-group>
-
-			<transition-group tag="ul" class="server__chat" name="chat-show">
-				<li class="chat" v-for="chat in server.Chats" v-bind:class="{
-					'chat--highlighted': chat.Highlighted,
-					'chat--special': chat.Player.ClientId == 0
-				}" :key="chat">
+			<transition-group tag="ul" class="server__chat server__maxheight" name="chat-show">
+				<li class="chat" v-for="chat in server.Chats" v-bind:class="{ 'chat--highlighted': chat.Highlighted, 'chat--special': chat.Player.ClientId == 0 }" :key="chat">
 					<span class="chat__author">{{ chat.Player.Name }}</span>
 					<div class="chat__message">{{ chat.Message }}</div>
 				</li>
@@ -41,12 +32,32 @@
 		<div v-else class="error">
 			Can't connect to a server at {{ server.ServerConfiguration.IP }}:{{ server.ServerConfiguration.Port }}.
 		</div>
+		<div class="column column--auto" v-if="server.Connected">
+			<transition-group tag="ul" class="server__killfeed server__maxheight" name="chat-show">
+				<li class="kill" v-for="kill in server.Kills" :key="kill">
+					<span class="kill__killer">{{ kill.Killer.Name }}</span>
+					<i class="kill__weapon ki white" v-bind:class="'ki-' + kill.Weapon"></i>
+					<span class="kill__killed">{{ kill.Killed.Name }}</span>
+				</li>
+			</transition-group>
+		</div>
 	</div>
 </div>
 
 @section Scripts {
 	<script>
 		(function () {
+			// Ask for notifications
+			Notification.requestPermission();
+
+			function sendNotification(msg) {
+				if (Notification.permission === "denied") return;
+				if (Notification.permission !== "granted") Notification.requestPermission(s => sendNotification(msg));
+				if (!document.hidden) return;
+
+				new Notification(msg);
+			}
+
 			const vm = new Vue({
 				el: "#app",
 				data: {
@@ -76,7 +87,7 @@
 				// Highlight chat message?
 				if (chat.Message.includes("!admin") || chat.Message.includes("!report")) {
 					chat.Highlighted = true;
-					// TODO send desktop notification
+					sendNotification(chat.Message);
 				}
 
 				let s = vm.serverList.find(s => s.RuntimeId == server.RuntimeId);

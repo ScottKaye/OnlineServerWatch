@@ -5,6 +5,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Primitives;
 using OnlineServerWatch.Models.Configuration;
 using OnlineServerWatch.Models.Connections;
 using OnlineServerWatch.Models.Game;
@@ -23,6 +24,14 @@ namespace OnlineServerWatch
 				.AddJsonFile("servers.json", false, true);
 
 			Configuration = builder.Build();
+			var token = Configuration.GetReloadToken();
+
+			// How to actually monitor changes with reloadOnChange
+			// https://github.com/aspnet/Configuration/issues/432#issuecomment-221704063
+			ChangeToken.OnChange(() => Configuration.GetReloadToken(), () =>
+			{
+
+			});
 		}
 
 		public void ConfigureServices(IServiceCollection services)
