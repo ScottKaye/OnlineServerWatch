@@ -19,19 +19,10 @@ namespace OnlineServerWatch
 
 		public Startup(IHostingEnvironment env)
 		{
-			var builder = new ConfigurationBuilder()
+			Configuration = new ConfigurationBuilder()
 				.SetBasePath(env.ContentRootPath)
-				.AddJsonFile("servers.json", false, true);
-
-			Configuration = builder.Build();
-			var token = Configuration.GetReloadToken();
-
-			// How to actually monitor changes with reloadOnChange
-			// https://github.com/aspnet/Configuration/issues/432#issuecomment-221704063
-			ChangeToken.OnChange(() => Configuration.GetReloadToken(), () =>
-			{
-
-			});
+				.AddJsonFile("servers.json", false, true)
+				.Build();
 		}
 
 		public void ConfigureServices(IServiceCollection services)
@@ -44,22 +35,11 @@ namespace OnlineServerWatch
 				options.Hubs.EnableDetailedErrors = true;
 			});
 
-			// Manually build the Server list
-			services.Configure<List<Server>>(options =>
-			{
-				foreach (var child in Configuration.GetSection("Servers").GetChildren())
-				{
-					var server = new Server();
-					child.Bind(server);
-
-					// Manually bind password
-					server.Password = child.GetValue<string>("Password");
-					options.Add(server);
-				}
-			});
+			services.Configure<List<Server>>(Configuration.GetSection("Servers"));
+			services.AddSingleton<IRCONService, RCONService>();
 		}
 
-		public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory, IConnectionManager connectionManager, IOptions<List<Server>> servers)
+		public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
 		{
 			loggerFactory.AddConsole(LogLevel.Warning);
 
@@ -80,10 +60,6 @@ namespace OnlineServerWatch
 
 			app.UseWebSockets();
 			app.UseSignalR("/signalr");
-
-			GameServerManager.ConnectionManager = connectionManager;
-			GameServerManager.Import(servers);
-			RCONService.Start();
 		}
 	}
 }

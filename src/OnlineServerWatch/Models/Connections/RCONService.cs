@@ -1,79 +1,111 @@
 ﻿using CoreRCON;
 using CoreRCON.Parsers.Standard;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR.Infrastructure;
+using Microsoft.Extensions.Options;
+using OnlineServerWatch.Hubs;
+using OnlineServerWatch.Models.Configuration;
 using OnlineServerWatch.Models.Game;
 using System;
+using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Threading.Tasks;
 
 namespace OnlineServerWatch.Models.Connections
 {
-	public class RCONService
+	public interface IRCONService
 	{
-		public static void Start()
+		List<GameServer> GameServers { get; }
+	}
+
+	public class RCONService : IRCONService
+	{
+		public List<GameServer> GameServers { get; } = new List<GameServer>();
+		private IHubContext Context;
+
+		public RCONService(IOptionsMonitor<List<Server>> servers, IConnectionManager manager)
 		{
-			foreach (var server in GameServerManager.GameServers)
+			Context = manager.GetHubContext<RCONHub>();
+
+			Setup(servers.CurrentValue);
+			servers.OnChange(Setup);
+		}
+
+		private void Setup(List<Server> servers)
+		{
+			GameServers.Clear();
+
+			foreach (var server in servers)
 			{
-				// Connect to RCON
-				Task.Run(() => Connect(server));
+				var gameServer = new GameServer(server);
+				GameServers.Add(gameServer);
+
+				gameServer.OnChatReceived += message =>
+				{
+					Context.Clients.All.Chat(gameServer, message);
+				};
+
+				gameServer.OnKillReceived += kill =>
+				{
+					Context.Clients.All.Kill(gameServer, kill);
+				};
+
+				gameServer.OnServerInfoUpdated += () =>
+				{
+					Context.Clients.All.Update(gameServer);
+				};
+
+				Task.Run(() => Connect(gameServer));
 			}
 		}
 
-		private static async Task Connect(GameServer server, int retries = 0)
+		private static async Task Connect(GameServer server)
 		{
-			var rcon = new RCON();
+			string thisServer = "192.168.1.8"; // TODO get real IP of the current server
 
-			try
+			var rcon = new RCON(
+				host: IPAddress.Parse(server.ServerConfiguration.IP),
+				port: server.ServerConfiguration.Port,
+				password: server.ServerConfiguration.Password
+			);
+
+			var log = new LogReceiver(
+				self: IPAddress.Parse(thisServer),
+				port: 0
+			);
+
+			await rcon.SendCommandAsync($"logaddress_add {thisServer}:{log.ResolvedPort}");
+
+			log.Listen<ChatMessage>(server.ChatReceived);
+			log.Listen<KillFeed>(server.KillReceived);
+
+			log.Listen<PlayerConnected>(connected =>
 			{
-				await rcon.ConnectAsync(
-					ip: server.ServerConfiguration.IP,
-					port: server.ServerConfiguration.Port,
-					password: server.ServerConfiguration.Password,
-					udpPort: 0 // Use first free port
-				);
-				await rcon.StartLogging("192.168.1.8"); // TODO get public IP of server
-
-				rcon.Listen<ChatMessage>(server.ChatReceived);
-				rcon.Listen<KillFeed>(server.KillReceived);
-
-				rcon.Listen<PlayerConnected>(connected =>
-				{
-					server.Players.Add(connected.Player);
-					server.ServerInfoUpdated();
-				});
-
-				rcon.Listen<PlayerDisconnected>(disconnected =>
-				{
-					var player = server.Players.FirstOrDefault(p => p.ClientId == disconnected.Player.ClientId);
-					if (player == null) return;
-					server.Players.Remove(player);
-					server.ServerInfoUpdated();
-				});
-
-				rcon.Listen<NameChange>(change =>
-				{
-					var player = server.Players.FirstOrDefault(p => p.ClientId == change.Player.ClientId);
-					if (player == null) return;
-					player.Name = change.NewName;
-					server.ServerInfoUpdated();
-				});
-
-				server.Status = await rcon.SendCommandAsync<Status>("status");
-				server.Connected = true;
+				server.Players.Add(connected.Player);
 				server.ServerInfoUpdated();
-				await rcon.KeepAliveAsync();
-			}
-			catch (Exception ex)
+			});
+
+			log.Listen<PlayerDisconnected>(disconnected =>
 			{
-				Console.Error.WriteLine(ex.Message);
-
-				server.Connected = false;
+				var player = server.Players.FirstOrDefault(p => p.ClientId == disconnected.Player.ClientId);
+				if (player == null) return;
+				server.Players.Remove(player);
 				server.ServerInfoUpdated();
+			});
 
-				// Keep trying to reconnect
-				// Wait an increasing amount of time so the website doesn't inadvertently DoS somebody forever
-				await Task.Delay(10000 * ++retries);
-				await Connect(server, retries);
-			}
+			log.Listen<NameChange>(change =>
+			{
+				var player = server.Players.FirstOrDefault(p => p.ClientId == change.Player.ClientId);
+				if (player == null) return;
+				player.Name = change.NewName;
+				server.ServerInfoUpdated();
+			});
+
+			server.Status = await rcon.SendCommandAsync<Status>("status");
+			server.Connected = true;
+			server.ServerInfoUpdated();
+			await Task.Delay(-1);
 		}
 	}
 }

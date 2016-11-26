@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using OnlineServerWatch.Models.Connections;
 
 namespace OnlineServerWatch.Controllers
 {

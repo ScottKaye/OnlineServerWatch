@@ -7,8 +7,10 @@ namespace OnlineServerWatch.Models.Game
 {
 	public class GameServer
 	{
+		private static int _runtimeId = 0;
+
 		public Server ServerConfiguration { get; set; }
-		public string RuntimeId { get; } = Guid.NewGuid().ToString();
+		public int RuntimeId { get; } = ++_runtimeId;
 		public List<Player> Players { get; set; } = new List<Player>();
 		public Status Status { get; set; }
 		public bool Connected { get; set; } = false;
