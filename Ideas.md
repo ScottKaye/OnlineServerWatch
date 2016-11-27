@@ -1,0 +1,11 @@
+# Ideas
+- Server boxes look more like computers/routers
+- Blink a light somewhere whenever a message is received
+- Names are linked to steam profiles in the killfeed and chat
+- Limit width of each column, long names easily push the width beyond what it should be
+- Player connection timer
+- Player score
+- Users can choose to highlight/trigger notifications for certain words that appear in any chat feed
+  - Replace the hardcoded !admin and !report triggers
+  - Save to localStorage
+- Automatic chat URL linking

@@ -1,19 +1,19 @@
-﻿using System.Threading.Tasks;
-using Microsoft.AspNetCore.SignalR;
+﻿using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Hubs;
 using OnlineServerWatch.Models.Connections;
+using System.Threading.Tasks;
 
 namespace OnlineServerWatch.Hubs
 {
-    [HubName("RCONHub")]
+	[HubName("RCONHub")]
 	public class RCONHub : Hub
 	{
-        private IRCONService _rcon;
+		private IRCONService _rcon;
 
-        public RCONHub(IRCONService rcon)
-        {
-            _rcon = rcon;
-        }
+		public RCONHub(IRCONService rcon)
+		{
+			_rcon = rcon;
+		}
 
 		public override Task OnConnected()
 		{

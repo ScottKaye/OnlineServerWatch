@@ -1,7 +1,10 @@
 ﻿using CoreRCON;
 using CoreRCON.Parsers.Standard;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Infrastructure;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using OnlineServerWatch.Hubs;
 using OnlineServerWatch.Models.Configuration;
@@ -21,61 +24,52 @@ namespace OnlineServerWatch.Models.Connections
 
 	public class RCONService : IRCONService
 	{
+		private IHubContext _context;
+		private IPAddress _host;
+		private ILogger<RCONService> _log;
+		private IConfiguration _config;
 		public List<GameServer> GameServers { get; } = new List<GameServer>();
-		private IHubContext Context;
 
-		public RCONService(IOptionsMonitor<List<Server>> servers, IConnectionManager manager)
+		public RCONService(
+			IOptionsMonitor<List<Server>> servers,
+			IConnectionManager manager,
+			ILogger<RCONService> log,
+			IConfiguration config)
 		{
-			Context = manager.GetHubContext<RCONHub>();
+			_context = manager.GetHubContext<RCONHub>();
+			_log = log;
+			_host = IPAddress.Parse(config.GetSection("PublicIP").Value);
 
 			Setup(servers.CurrentValue);
 			servers.OnChange(Setup);
 		}
 
-		private void Setup(List<Server> servers)
+		private async Task Connect(GameServer server)
 		{
-			GameServers.Clear();
+			RCON rcon;
 
-			foreach (var server in servers)
+			try
 			{
-				var gameServer = new GameServer(server);
-				GameServers.Add(gameServer);
-
-				gameServer.OnChatReceived += message =>
-				{
-					Context.Clients.All.Chat(gameServer, message);
-				};
-
-				gameServer.OnKillReceived += kill =>
-				{
-					Context.Clients.All.Kill(gameServer, kill);
-				};
-
-				gameServer.OnServerInfoUpdated += () =>
-				{
-					Context.Clients.All.Update(gameServer);
-				};
-
-				Task.Run(() => Connect(gameServer));
+				rcon = new RCON(
+					host: IPAddress.Parse(server.ServerConfiguration.IP),
+					port: server.ServerConfiguration.Port,
+					password: server.ServerConfiguration.Password
+				);
 			}
-		}
-
-		private static async Task Connect(GameServer server)
-		{
-			string thisServer = "192.168.1.8"; // TODO get real IP of the current server
-
-			var rcon = new RCON(
-				host: IPAddress.Parse(server.ServerConfiguration.IP),
-				port: server.ServerConfiguration.Port,
-				password: server.ServerConfiguration.Password
-			);
+			catch
+			{
+				await Reconnect(server);
+				return;
+			}
 
 			var log = new LogReceiver(
-				self: IPAddress.Parse(thisServer),
-				port: 0
+				self: _host,
+				port: server.ServerConfiguration.LogPort // Defaults to 0 if not set, which will use the first-available port anyway
 			);
 
-			await rcon.SendCommandAsync($"logaddress_add {thisServer}:{log.ResolvedPort}");
+			rcon.OnDisconnected += async () => await Reconnect(server);
+
+			await rcon.SendCommandAsync($"logaddress_add {_host}:{log.ResolvedPort}");
 
 			log.Listen<ChatMessage>(server.ChatReceived);
 			log.Listen<KillFeed>(server.KillReceived);
@@ -103,9 +97,54 @@ namespace OnlineServerWatch.Models.Connections
 			});
 
 			server.Status = await rcon.SendCommandAsync<Status>("status");
+			server.ReconnectionRetries = 0;
 			server.Connected = true;
 			server.ServerInfoUpdated();
 			await Task.Delay(-1);
+		}
+
+		private async Task Reconnect(GameServer server)
+		{
+			if (server.ReconnectionRetries++ >= Constants.MAX_RETRIES)
+			{
+				_log.LogCritical($"Reached a maximum of {Constants.MAX_RETRIES} failed connection attempts for {server.ServerConfiguration}.  Stopping.");
+				return;
+			}
+
+			server.Connected = false;
+			server.ServerInfoUpdated();
+			_log.LogError($"Failed to connect to {server.ServerConfiguration}...  Trying again in 10 seconds.");
+			await Task.Delay(10000);
+			_log.LogInformation($"Attempting to reconnect to {server.ServerConfiguration}.");
+			await Connect(server);
+		}
+
+		private void Setup(List<Server> servers)
+		{
+			GameServers.Clear();
+
+			foreach (var server in servers)
+			{
+				var gameServer = new GameServer(server);
+				GameServers.Add(gameServer);
+
+				gameServer.OnChatReceived += message =>
+				{
+					_context.Clients.All.Chat(gameServer, message);
+				};
+
+				gameServer.OnKillReceived += kill =>
+				{
+					_context.Clients.All.Kill(gameServer, kill);
+				};
+
+				gameServer.OnServerInfoUpdated += () =>
+				{
+					_context.Clients.All.Update(gameServer);
+				};
+
+				Task.Run(() => Connect(gameServer));
+			}
 		}
 	}
 }

@@ -19,9 +19,9 @@
 	background-image: url(/img/killicons-white.png);
 }
 
-.ki.white.ki-crit::before, .ki.white.ki-australium::before {
-	mix-blend-mode: lighten;
-}
+	.ki.white.ki-crit::before, .ki.white.ki-australium::before {
+		mix-blend-mode: lighten;
+	}
 
 @keyframes ki-pulse {
 	0% {
@@ -207,7 +207,7 @@
 	height: 17px;
 }
 
-.ki-bleed {
+.ki-bleed_kill {
 	background-position: -757px -126px;
 	width: 24px;
 	height: 33px;
@@ -267,7 +267,7 @@
 	height: 31px;
 }
 
-.ki-capper {
+.ki-the_capper {
 	background-position: 0 -335px;
 	width: 104px;
 	height: 30px;
@@ -297,13 +297,13 @@
 	height: 32px;
 }
 
-.ki-connivers_kunai {
+.ki-kunai {
 	background-position: 0 -765px;
 	width: 74px;
 	height: 13px;
 }
 
-.ki-conscientious_objector {
+.ki-nonnonviolent_protest {
 	background-position: -353px -698px;
 	width: 63px;
 	height: 30px;
@@ -597,7 +597,7 @@
 	height: 34px;
 }
 
-.ki-frying_pan {
+.ki-fryingpan {
 	background-position: -306px -575px;
 	width: 69px;
 	height: 25px;
@@ -609,7 +609,7 @@
 	height: 32px;
 }
 
-.ki-gloves_of_running_urgently {
+.ki-gloves_running_urgently {
 	background-position: -78px -544px;
 	width: 77px;
 	height: 25px;
@@ -999,6 +999,7 @@
 	height: 32px;
 }
 
+.ki-pistol_scout,
 .ki-pistol {
 	background-position: -746px -635px;
 	width: 45px;
@@ -1269,6 +1270,7 @@
 	height: 31px;
 }
 
+.ki-awper_hand,
 .ki-sniperrifle {
 	background-position: -761px -68px;
 	width: 30px;

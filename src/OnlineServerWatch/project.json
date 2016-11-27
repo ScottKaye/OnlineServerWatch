@@ -3,7 +3,6 @@
 		"CoreRCON": "1.0.1",
 		"Microsoft.AspNetCore.Diagnostics": "1.1.0",
 		"Microsoft.AspNetCore.Mvc": "1.1.0",
-		"Microsoft.AspNetCore.Server.IISIntegration": "1.1.0",
 		"Microsoft.AspNetCore.Server.Kestrel": "1.1.0",
 		"Microsoft.AspNetCore.SignalR.Server": "0.1.0",
 		"Microsoft.AspNetCore.StaticFiles": "1.1.0",
@@ -42,11 +41,8 @@
 		"include": [
 			"wwwroot",
 			"web.config",
-			"servers.json"
+			"servers.json",
+			"Views"
 		]
-	},
-
-	"scripts": {
-		"postpublish": [ "dotnet publish-iis --publish-folder %publish:OutputPath% --framework %publish:FullTargetFramework%" ]
 	}
 }

@@ -12,6 +12,17 @@ body {
 	background: $background;
 	color: $foreground;
 	font-family: Segoe UI, sans-serif;
+
+	&::before {
+		content: "";
+		position: fixed;
+		background: url(/img/axiom-pattern.png) repeat;
+		opacity: 0.25;
+		top: 0;
+		right: 0;
+		bottom: 0;
+		left: 0;
+	}
 }
 
 #app {
@@ -22,6 +33,7 @@ header.main {
 	padding: 5px 10px;
 	border-bottom: 1px solid darken($foreground, 10%);
 	box-shadow: 0 0 5px $foreground;
+
 	.main__title {
 		font-weight: 300;
 	}
@@ -165,6 +177,10 @@ header.main {
 .chat-show-enter, .chat-show-leave-active {
 	transform: rotateX(-45deg) translateY(-20px);
 	opacity: 0;
+}
+
+[v-cloak] {
+	display: none;
 }
 
 @import "killicons";

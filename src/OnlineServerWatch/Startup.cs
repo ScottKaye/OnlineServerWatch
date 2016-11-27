@@ -1,14 +1,11 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.SignalR.Infrastructure;
+using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using Microsoft.Extensions.Primitives;
 using OnlineServerWatch.Models.Configuration;
 using OnlineServerWatch.Models.Connections;
-using OnlineServerWatch.Models.Game;
 using System.Collections.Generic;
 
 namespace OnlineServerWatch
@@ -23,20 +20,6 @@ namespace OnlineServerWatch
 				.SetBasePath(env.ContentRootPath)
 				.AddJsonFile("servers.json", false, true)
 				.Build();
-		}
-
-		public void ConfigureServices(IServiceCollection services)
-		{
-			services.AddMvc();
-			services.AddOptions();
-
-			services.AddSignalR(options =>
-			{
-				options.Hubs.EnableDetailedErrors = true;
-			});
-
-			services.Configure<List<Server>>(Configuration.GetSection("Servers"));
-			services.AddSingleton<IRCONService, RCONService>();
 		}
 
 		public void Configure(IApplicationBuilder app, IHostingEnvironment env, ILoggerFactory loggerFactory)
@@ -60,6 +43,22 @@ namespace OnlineServerWatch
 
 			app.UseWebSockets();
 			app.UseSignalR("/signalr");
+		}
+
+		public void ConfigureServices(IServiceCollection services)
+		{
+			services.AddMvc();
+			services.AddOptions();
+
+			services.AddSignalR(options =>
+			{
+				options.Hubs.EnableDetailedErrors = true;
+			});
+
+			services.Configure<List<Server>>(Configuration.GetSection("Servers"));
+			services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
+			services.AddSingleton<IRCONService, RCONService>();
+			services.AddSingleton<IConfiguration>(Configuration);
 		}
 	}
 }
