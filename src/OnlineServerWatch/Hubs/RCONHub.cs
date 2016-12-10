@@ -8,9 +8,9 @@ namespace OnlineServerWatch.Hubs
 	[HubName("RCONHub")]
 	public class RCONHub : Hub
 	{
-		private IRCONService _rcon;
+		private ILogAddressService _rcon;
 
-		public RCONHub(IRCONService rcon)
+		public RCONHub(ILogAddressService rcon)
 		{
 			_rcon = rcon;
 		}

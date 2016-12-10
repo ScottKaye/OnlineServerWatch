@@ -1,6 +1,6 @@
 {
 	"dependencies": {
-		"CoreRCON": "1.0.1",
+		"CoreRCON": "1.1.0",
 		"Microsoft.AspNetCore.Diagnostics": "1.1.0",
 		"Microsoft.AspNetCore.Mvc": "1.1.0",
 		"Microsoft.AspNetCore.Server.Kestrel": "1.1.0",

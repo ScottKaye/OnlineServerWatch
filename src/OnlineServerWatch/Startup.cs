@@ -1,6 +1,5 @@
 ﻿using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -57,7 +56,7 @@ namespace OnlineServerWatch
 
 			services.Configure<List<Server>>(Configuration.GetSection("Servers"));
 			services.AddSingleton(typeof(ILogger<>), typeof(Logger<>));
-			services.AddSingleton<IRCONService, RCONService>();
+			services.AddSingleton<ILogAddressService, LogAddressService>();
 			services.AddSingleton<IConfiguration>(Configuration);
 		}
 	}

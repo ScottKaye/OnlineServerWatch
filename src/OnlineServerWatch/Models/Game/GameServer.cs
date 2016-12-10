@@ -7,13 +7,17 @@ namespace OnlineServerWatch.Models.Game
 {
 	public class GameServer
 	{
-		internal ushort ReconnectionRetries = 0;
 		private static int _runtimeId = 0;
 		public bool Connected { get; set; } = false;
 		public List<Player> Players { get; set; } = new List<Player>();
+
+		/// <summary>
+		/// Identifier used to identify servers uniquely.
+		/// </summary>
 		public int RuntimeId { get; } = ++_runtimeId;
+
 		public Server ServerConfiguration { get; set; }
-		public Status Status { get; set; }
+		public Status Status { get; set; } = new Status();
 
 		internal event Action<ChatMessage> OnChatReceived;
 

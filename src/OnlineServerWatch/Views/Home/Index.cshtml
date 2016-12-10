@@ -16,7 +16,7 @@
 				<span v-else class="server__empty">Server is empty.</span>
 			</div>
 		</div>
-		<div class="column column--auto" v-if="server.Connected">
+		<div class="column column--auto">
 			<header>
 				<span class="server__players">{{ server.Players.length }}/{{ server.Status.MaxPlayers }}</span>
 				<span class="server__map">ctf_2fort</span>
@@ -81,8 +81,8 @@
 				existing.Connected = server.Connected;
 			};
 
-			hub.client.chat = (server, chat) => {
-				console.log("Chat:", server, chat);
+			hub.client.chat = (serverId, chat) => {
+				console.log("Chat:", serverId, chat);
 
 				// Highlight chat message?
 				if (chat.Message.includes("!admin") || chat.Message.includes("!report")) {
@@ -90,7 +90,7 @@
 					sendNotification(chat.Message);
 				}
 
-				let s = vm.serverList.find(s => s.RuntimeId == server.RuntimeId);
+				let s = vm.serverList.find(s => s.RuntimeId == serverId);
 				if (!s.Chats) Vue.set(s, "Chats", []);
 				s.Chats.unshift(chat);
 
@@ -102,8 +102,8 @@
 				}
 			};
 
-			hub.client.kill = (server, kill) => {
-				let s = vm.serverList.find(s => s.RuntimeId == server.RuntimeId);
+			hub.client.kill = (serverId, kill) => {
+				let s = vm.serverList.find(s => s.RuntimeId == serverId);
 				if (!s.Kills) Vue.set(s, "Kills", []);
 				s.Kills.unshift(kill);
 

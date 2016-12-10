@@ -1,6 +1,5 @@
 ﻿using CoreRCON;
 using CoreRCON.Parsers.Standard;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Infrastructure;
 using Microsoft.Extensions.Configuration;
@@ -9,67 +8,43 @@ using Microsoft.Extensions.Options;
 using OnlineServerWatch.Hubs;
 using OnlineServerWatch.Models.Configuration;
 using OnlineServerWatch.Models.Game;
-using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Threading.Tasks;
 
 namespace OnlineServerWatch.Models.Connections
 {
-	public interface IRCONService
+	public interface ILogAddressService
 	{
 		List<GameServer> GameServers { get; }
 	}
 
-	public class RCONService : IRCONService
+	public class LogAddressService : ILogAddressService
 	{
 		private IHubContext _context;
-		private IPAddress _host;
-		private ILogger<RCONService> _log;
+		private ILogger<LogAddressService> _log;
 		private IConfiguration _config;
 		public List<GameServer> GameServers { get; } = new List<GameServer>();
 
-		public RCONService(
+		public LogAddressService(
 			IOptionsMonitor<List<Server>> servers,
 			IConnectionManager manager,
-			ILogger<RCONService> log,
+			ILogger<LogAddressService> log,
 			IConfiguration config)
 		{
 			_context = manager.GetHubContext<RCONHub>();
 			_log = log;
-			_host = IPAddress.Parse(config.GetSection("PublicIP").Value);
 
-			Setup(servers.CurrentValue);
-			servers.OnChange(Setup);
+			StartListening(servers.CurrentValue);
+			servers.OnChange(StartListening);
 		}
 
 		private async Task Connect(GameServer server)
 		{
-			RCON rcon;
-
-			try
-			{
-				rcon = new RCON(
-					host: IPAddress.Parse(server.ServerConfiguration.IP),
-					port: server.ServerConfiguration.Port,
-					password: server.ServerConfiguration.Password
-				);
-			}
-			catch
-			{
-				await Reconnect(server);
-				return;
-			}
-
 			var log = new LogReceiver(
-				self: _host,
-				port: server.ServerConfiguration.LogPort // Defaults to 0 if not set, which will use the first-available port anyway
+				server.ServerConfiguration.LogPort,
+				server.ServerConfiguration.EndPoint
 			);
-
-			rcon.OnDisconnected += async () => await Reconnect(server);
-
-			await rcon.SendCommandAsync($"logaddress_add {_host}:{log.ResolvedPort}");
 
 			log.Listen<ChatMessage>(server.ChatReceived);
 			log.Listen<KillFeed>(server.KillReceived);
@@ -96,30 +71,12 @@ namespace OnlineServerWatch.Models.Connections
 				server.ServerInfoUpdated();
 			});
 
-			server.Status = await rcon.SendCommandAsync<Status>("status");
-			server.ReconnectionRetries = 0;
 			server.Connected = true;
 			server.ServerInfoUpdated();
 			await Task.Delay(-1);
 		}
 
-		private async Task Reconnect(GameServer server)
-		{
-			if (server.ReconnectionRetries++ >= Constants.MAX_RETRIES)
-			{
-				_log.LogCritical($"Reached a maximum of {Constants.MAX_RETRIES} failed connection attempts for {server.ServerConfiguration}.  Stopping.");
-				return;
-			}
-
-			server.Connected = false;
-			server.ServerInfoUpdated();
-			_log.LogError($"Failed to connect to {server.ServerConfiguration}...  Trying again in 10 seconds.");
-			await Task.Delay(10000);
-			_log.LogInformation($"Attempting to reconnect to {server.ServerConfiguration}.");
-			await Connect(server);
-		}
-
-		private void Setup(List<Server> servers)
+		private void StartListening(List<Server> servers)
 		{
 			GameServers.Clear();
 
@@ -130,12 +87,12 @@ namespace OnlineServerWatch.Models.Connections
 
 				gameServer.OnChatReceived += message =>
 				{
-					_context.Clients.All.Chat(gameServer, message);
+					_context.Clients.All.Chat(gameServer.RuntimeId, message);
 				};
 
 				gameServer.OnKillReceived += kill =>
 				{
-					_context.Clients.All.Kill(gameServer, kill);
+					_context.Clients.All.Kill(gameServer.RuntimeId, kill);
 				};
 
 				gameServer.OnServerInfoUpdated += () =>
