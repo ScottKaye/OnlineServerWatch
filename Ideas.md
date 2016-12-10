@@ -9,3 +9,4 @@
   - Replace the hardcoded !admin and !report triggers
   - Save to localStorage
 - Automatic chat URL linking
+- **Make sure admin sourcemod chat isn't visible!**

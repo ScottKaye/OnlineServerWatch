@@ -717,6 +717,7 @@
 	height: 31px;
 }
 
+.ki-tf_projectile_arrow,
 .ki-huntsman {
 	background-position: 0 -465px;
 	width: 96px;
@@ -1216,6 +1217,7 @@
 	height: 32px;
 }
 
+.ki-shotgun_soldier,
 .ki-shotgun {
 	background-position: -305px -253px;
 	width: 94px;
